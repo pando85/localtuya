@@ -1,4 +1,5 @@
 """Platform to locally control Tuya-based climate devices."""
+
 import asyncio
 import logging
 from functools import partial
@@ -47,6 +48,8 @@ from .const import (
     CONF_HVAC_ACTION_SET,
     CONF_HVAC_MODE_DP,
     CONF_HVAC_MODE_SET,
+    CONF_HVAC_MODE_COOLING_DP,
+    CONF_HVAC_MODE_COOLING_SET,
     CONF_MAX_TEMP_DP,
     CONF_MIN_TEMP_DP,
     CONF_PRECISION,
@@ -73,8 +76,8 @@ HVAC_MODE_SETS = {
         HVACMode.AUTO: "Auto",
     },
     "MANUAL/AUTO": {
-        HVAC_MODE_HEAT: "MANUAL",
-        HVAC_MODE_AUTO: "AUTO",
+        HVACMode.HEAT: "MANUAL",
+        HVACMode.AUTO: "AUTO",
     },
     "Manual/Program": {
         HVACMode.HEAT: "Manual",
@@ -99,6 +102,13 @@ HVAC_MODE_SETS = {
         HVACMode.AUTO: "0",
     },
 }
+HVAC_MODE_COOLING_SETS = {
+    "True/False": {
+        HVACMode.HEAT: True,
+        HVACMode.COOL: False,
+    },
+}
+
 HVAC_ACTION_SETS = {
     "True/False": {
         HVACAction.HEATING: True,
@@ -117,8 +127,8 @@ HVAC_ACTION_SETS = {
         HVACAction.IDLE: "Warming",
     },
     "heating/warming": {
-        CURRENT_HVAC_HEAT: "heating",
-        CURRENT_HVAC_IDLE: "warming",
+        HVACAction.HEATING: "heating",
+        HVACAction.IDLE: "warming",
     },
 }
 HVAC_FAN_MODE_SETS = {
@@ -175,6 +185,8 @@ def flow_schema(dps):
         ),
         vol.Optional(CONF_HVAC_MODE_DP): vol.In(dps),
         vol.Optional(CONF_HVAC_MODE_SET): vol.In(list(HVAC_MODE_SETS.keys())),
+        vol.Optional(CONF_HVAC_MODE_COOLING_DP): vol.In(dps),
+        vol.Optional(CONF_HVAC_MODE_COOLING_SET): vol.In(list(HVAC_MODE_COOLING_SETS.keys())),
         vol.Optional(CONF_HVAC_FAN_MODE_DP): vol.In(dps),
         vol.Optional(CONF_HVAC_FAN_MODE_SET): vol.In(list(HVAC_FAN_MODE_SETS.keys())),
         vol.Optional(CONF_HVAC_ACTION_DP): vol.In(dps),
@@ -229,6 +241,10 @@ class LocaltuyaClimate(LocalTuyaEntity, ClimateEntity):
         self._conf_hvac_swing_mode_set = HVAC_SWING_MODE_SETS.get(
             self._config.get(CONF_HVAC_SWING_MODE_SET), {}
         )
+        self._conf_hvac_mode_cooling_dp = self._config.get(CONF_HVAC_MODE_COOLING_DP)
+        self._conf_hvac_mode_cooling_set = HVAC_MODE_COOLING_SETS.get(
+            self._config.get(CONF_HVAC_MODE_COOLING_SET), {}
+        )
         self._conf_preset_dp = self._config.get(CONF_PRESET_DP)
         self._conf_preset_set = PRESET_SETS.get(self._config.get(CONF_PRESET_SET), {})
         self._conf_hvac_action_dp = self._config.get(CONF_HVAC_ACTION_DP)
@@ -245,14 +261,22 @@ class LocaltuyaClimate(LocalTuyaEntity, ClimateEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        supported_features = ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
+        supported_features = (
+            ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
+        )
         if self.has_config(CONF_TARGET_TEMPERATURE_DP):
-            supported_features = supported_features | ClimateEntityFeature.TARGET_TEMPERATURE
+            supported_features = (
+                supported_features | ClimateEntityFeature.TARGET_TEMPERATURE
+            )
         if self.has_config(CONF_MAX_TEMP_DP):
-            supported_features = supported_features | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+            supported_features = (
+                supported_features | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+            )
         if self.has_config(CONF_PRESET_DP) or self.has_config(CONF_ECO_DP):
             supported_features = supported_features | ClimateEntityFeature.PRESET_MODE
-        if self.has_config(CONF_HVAC_FAN_MODE_DP) and self.has_config(CONF_HVAC_FAN_MODE_SET):
+        if self.has_config(CONF_HVAC_FAN_MODE_DP) and self.has_config(
+            CONF_HVAC_FAN_MODE_SET
+        ):
             supported_features = supported_features | ClimateEntityFeature.FAN_MODE
         if self.has_config(CONF_HVAC_SWING_MODE_DP):
             supported_features = supported_features | ClimateEntityFeature.SWING_MODE
@@ -288,7 +312,9 @@ class LocaltuyaClimate(LocalTuyaEntity, ClimateEntity):
         """Return the list of available operation modes."""
         if not self.has_config(CONF_HVAC_MODE_DP):
             return None
-        return list(self._conf_hvac_mode_set) + [HVACMode.OFF]
+        elif not self.has_config(CONF_HVAC_MODE_COOLING_DP):
+            return list(self._conf_hvac_mode_set) + [HVACMode.OFF]
+        return list(self._conf_hvac_mode_set) + [HVACMode.OFF, HVACMode.COOL]
 
     @property
     def hvac_action(self):
@@ -399,9 +425,20 @@ class LocaltuyaClimate(LocalTuyaEntity, ClimateEntity):
             await self._device.set_dp(True, self._dp_id)
             # Some thermostats need a small wait before sending another update
             await asyncio.sleep(MODE_WAIT)
-        await self._device.set_dp(
-            self._conf_hvac_mode_set[hvac_mode], self._conf_hvac_mode_dp
-        )
+        if self.has_config(CONF_HVAC_MODE_COOLING_DP):
+            if hvac_mode in [HVACMode.HEAT, HVACMode.COOL]:
+                self._device.set_dp(
+                    self._conf_hvac_mode_set[HVACMode.HEAT], self._conf_hvac_mode_dp
+                )
+                await asyncio.sleep(MODE_WAIT)
+                await self._device.set_dp(
+                    self._conf_hvac_mode_cooling_set[hvac_mode],
+                    self._conf_hvac_mode_cooling_dp,
+                )
+        else:
+            await self._device.set_dp(
+                self._conf_hvac_mode_set[hvac_mode], self._conf_hvac_mode_dp
+            )
 
     async def async_set_swing_mode(self, swing_mode):
         """Set new target swing operation."""
@@ -481,6 +518,14 @@ class LocaltuyaClimate(LocalTuyaEntity, ClimateEntity):
             else:
                 for mode, value in self._conf_hvac_mode_set.items():
                     if self.dps_conf(CONF_HVAC_MODE_DP) == value:
+                        if (
+                            self.has_config(CONF_HVAC_MODE_COOLING_DP)
+                            and mode == HVACMode.HEAT
+                        ):
+                            for mode, value in self._conf_hvac_mode_cooling_set.items():
+                                if self.dps_conf(CONF_HVAC_MODE_COOLING_DP) == value:
+                                    self._hvac_mode = mode
+                                    break
                         self._hvac_mode = mode
                         break
                 else:
@@ -495,7 +540,9 @@ class LocaltuyaClimate(LocalTuyaEntity, ClimateEntity):
                     break
             else:
                 # in case fan mode and preset share the same dp
-                _LOGGER.debug("Unknown fan mode %s" % self.dps_conf(CONF_HVAC_FAN_MODE_DP))
+                _LOGGER.debug(
+                    "Unknown fan mode %s" % self.dps_conf(CONF_HVAC_FAN_MODE_DP)
+                )
                 self._fan_mode = FAN_AUTO
 
         # Update the swing status
@@ -505,12 +552,21 @@ class LocaltuyaClimate(LocalTuyaEntity, ClimateEntity):
                     self._swing_mode = mode
                     break
             else:
-                _LOGGER.debug("Unknown swing mode %s" % self.dps_conf(CONF_HVAC_SWING_MODE_DP))
+                _LOGGER.debug(
+                    "Unknown swing mode %s" % self.dps_conf(CONF_HVAC_SWING_MODE_DP)
+                )
                 self._swing_mode = SWING_OFF
 
         # Update the current action
         for action, value in self._conf_hvac_action_set.items():
             if self.dps_conf(CONF_HVAC_ACTION_DP) == value:
+                if (
+                    self.has_config(CONF_HVAC_MODE_COOLING_DP)
+                    and action == HVACAction.HEATING
+                    and self.dps_conf(CONF_HVAC_MODE_COOLING_DP) == HVACMode.COOL
+                ):
+                    self._hvac_action = HVACAction.COOLING
+
                 self._hvac_action = action
 
 
