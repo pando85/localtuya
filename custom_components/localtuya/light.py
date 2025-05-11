@@ -169,8 +169,13 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
         self._upper_brightness = self._config.get(
             CONF_BRIGHTNESS_UPPER, DEFAULT_UPPER_BRIGHTNESS
         )
-        self.min_color_temp_kelvin = self._config.get(CONF_COLOR_TEMP_MIN_KELVIN, DEFAULT_MIN_KELVIN)
-        self.max_color_temp_kelvin = self._config.get(CONF_COLOR_TEMP_MAX_KELVIN, DEFAULT_MAX_KELVIN)
+        self._upper_color_temp = self._upper_brightness
+        self._max_mired = color_util.color_temperature_kelvin_to_mired(
+            int(self._config.get(CONF_COLOR_TEMP_MIN_KELVIN, DEFAULT_MIN_KELVIN))
+        )
+        self._min_mired = color_util.color_temperature_kelvin_to_mired(
+            int(self._config.get(CONF_COLOR_TEMP_MAX_KELVIN, DEFAULT_MAX_KELVIN))
+        )
         self._color_temp_reverse = self._config.get(
             CONF_COLOR_TEMP_REVERSE, DEFAULT_COLOR_TEMP_REVERSE
         )
@@ -181,7 +186,7 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
         self._scenes = {}
 
         if self.has_config(CONF_SCENE):
-            if self._config.get(CONF_SCENE) < 20:
+            if int(self._config.get(CONF_SCENE)) < 20:
                 self._scenes = SCENE_LIST_RGBW_255
             elif self._config.get(CONF_BRIGHTNESS) is None:
                 self._scenes = SCENE_LIST_RGB_1000
@@ -222,8 +227,29 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
     def color_temp(self):
         """Return the color_temp of the light."""
         if self.has_config(CONF_COLOR_TEMP) and self.is_white_mode:
-            return self.color_temp_kelvin
+            color_temp_value = (
+                self._upper_color_temp - self._color_temp
+                if self._color_temp_reverse
+                else self._color_temp
+            )
+            return int(
+                self._max_mired
+                - (
+                    ((self._max_mired - self._min_mired) / self._upper_color_temp)
+                    * color_temp_value
+                )
+            )
         return None
+
+    @property
+    def min_mireds(self):
+        """Return color temperature min mireds."""
+        return self._min_mired
+
+    @property
+    def max_mireds(self):
+        """Return color temperature max mireds."""
+        return self._max_mired
 
     @property
     def effect(self):
@@ -456,10 +482,7 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
                     self._brightness = value
 
         if ColorMode.COLOR_TEMP in self.supported_color_modes:
-            self.color_temp_kelvin = int(
-                (self.max_color_temp_kelvin - self.min_color_temp_kelvin)
-                / 100 * self.dps_conf(CONF_COLOR_TEMP)
-            )
+            self._color_temp = self.dps_conf(CONF_COLOR_TEMP)
 
         if self.is_scene_mode and supported & LightEntityFeature.EFFECT:
             if self.dps_conf(CONF_COLOR_MODE) != MODE_SCENE:
