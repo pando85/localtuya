@@ -473,7 +473,12 @@ class LocalTuyaEntity(RestoreEntity, pytuya.ContextualLogger):
     def has_config(self, attr):
         """Return if a config parameter has a valid value."""
         value = self._config.get(attr, "-1")
-        return value is not None and value != "-1"
+        # `is not False` instead of `in (False, ...)` since 0 == False
+        return (
+            value is not None
+            and value is not False
+            and str(value) not in ("-1", "")
+        )
 
     @property
     def available(self):

@@ -298,10 +298,10 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
             return ColorMode.HS
         if self.is_white_mode:
             return ColorMode.COLOR_TEMP
-        if self._brightness:
-            return ColorMode.BRIGHTNESS
-
-        return ColorMode.ONOFF
+        # Unknown mode DP value: never report a mode outside the supported ones
+        if ColorMode.COLOR_TEMP in self.supported_color_modes:
+            return ColorMode.COLOR_TEMP
+        return ColorMode.HS
 
     @property
     def is_white_mode(self):
@@ -336,10 +336,14 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
             SCENE_CUSTOM,
         )
 
+    def __is_white_only(self):
+        return ColorMode.HS not in self.supported_color_modes
+
     def __get_color_mode(self):
+        # Without color support the light can only be white, whatever the mode DP holds
         return (
             self.dps_conf(CONF_COLOR_MODE)
-            if self.has_config(CONF_COLOR_MODE)
+            if self.has_config(CONF_COLOR_MODE) and not self.__is_white_only()
             else self._modes.white
         )
 
@@ -446,7 +450,8 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
             )
             if self._color_temp_reverse:
                 color_temp = self._upper_color_temp - color_temp
-            states[self._config.get(CONF_COLOR_MODE)] = MODE_WHITE
+            if not self.__is_white_only():
+                states[self._config.get(CONF_COLOR_MODE)] = MODE_WHITE
             states[self._config.get(CONF_BRIGHTNESS)] = brightness
             states[self._config.get(CONF_COLOR_TEMP)] = color_temp
         await self._device.set_dps(states)
