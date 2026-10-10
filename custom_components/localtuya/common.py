@@ -88,18 +88,17 @@ async def async_setup_entry(
             device_entities = []
 
             for entity_config in entities_to_setup:
+                entity = entity_class(
+                    tuyainterface,
+                    dev_entry,
+                    entity_config[CONF_ID],
+                )
                 # Add DPS used by this platform to the request list
                 for dp_conf in dps_config_fields:
-                    if dp_conf in entity_config:
+                    if entity.uses_dp_config(dp_conf):
                         tuyainterface.dps_to_request[entity_config[dp_conf]] = None
 
-                device_entities.append(
-                    entity_class(
-                        tuyainterface,
-                        dev_entry,
-                        entity_config[CONF_ID],
-                    )
-                )
+                device_entities.append(entity)
             # Once the entities have been created, add to the TuyaDevice instance
             tuyainterface.add_entities(device_entities)
             entities.extend(device_entities)
@@ -481,6 +480,13 @@ class LocalTuyaEntity(RestoreEntity, pytuya.ContextualLogger):
             and value is not False
             and str(value) not in ("-1", "")
         )
+
+    def uses_dp_config(self, attr):
+        """Return if the DP set in a config parameter is used by the entity.
+
+        Override in subclasses that ignore some configured DPs.
+        """
+        return self.has_config(attr)
 
     @property
     def available(self):
