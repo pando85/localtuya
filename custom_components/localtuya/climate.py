@@ -564,14 +564,15 @@ class LocaltuyaClimate(LocalTuyaEntity, ClimateEntity):
         # Update the current action
         for action, value in self._conf_hvac_action_set.items():
             if self.dps_conf(CONF_HVAC_ACTION_DP) == value:
+                # With a cooling DP the same action value means heating or cooling, by mode
                 if (
                     self.has_config(CONF_HVAC_MODE_COOLING_DP)
                     and action == HVACAction.HEATING
-                    and self.dps_conf(CONF_HVAC_MODE_COOLING_DP) == HVACMode.COOL
+                    and self._hvac_mode == HVACMode.COOL
                 ):
-                    self._hvac_action = HVACAction.COOLING
-
+                    action = HVACAction.COOLING
                 self._hvac_action = action
+                break
 
 
 async_setup_entry = partial(async_setup_entry, DOMAIN, LocaltuyaClimate, flow_schema)
