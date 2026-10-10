@@ -16,10 +16,10 @@ The integration also supports the Tuya IoT Cloud APIs, for the retrieval of info
 The following Tuya device types are currently supported:
 * Switches
 * Lights
-* Covers
 * Fans
 * Climates
-* Vacuums
+* Numbers
+* Sensors
 
 Energy monitoring (voltage, current, watts, etc.) is supported for compatible devices.
 
