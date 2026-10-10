@@ -102,6 +102,9 @@ class LocaltuyaNumber(LocalTuyaEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
+        # Integer DPs reject floats, so send whole values of whole steps as int
+        if float(value).is_integer() and float(self._step_size).is_integer():
+            value = int(value)
         await self._device.set_dp(value, self._dp_id)
 
     # Default value is the minimum value
