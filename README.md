@@ -12,10 +12,10 @@ The integration also supports the Tuya IoT Cloud APIs, for the retrieval of info
 The following Tuya device types are currently supported:
 * Switches
 * Lights
-* Covers
 * Fans
 * Climates
-* Vacuums
+* Numbers
+* Sensors
 
 Energy monitoring (voltage, current, watts, etc.) is supported for compatible devices.
 
@@ -210,7 +210,7 @@ Then, edit the device that is showing problems and check the "Enable debugging f
 
 NameLessJedi https://github.com/NameLessJedi/localtuya-homeassistant and mileperhour https://github.com/mileperhour/localtuya-homeassistant being the major sources of inspiration, and whose code for switches is substantially unchanged.
 
-TradeFace, for being the only one to provide the correct code for communication with the cover (in particular, the 0x0d command for the status instead of the 0x0a, and related needs such as double reply to be received): https://github.com/TradeFace/tuya/
+TradeFace, for being the only one to provide the correct code for communication with the type_0d devices (in particular, the 0x0d command for the status instead of the 0x0a, and related needs such as double reply to be received): https://github.com/TradeFace/tuya/
 
 sean6541, for the working (standard) Python Handler for Tuya devices.
 
