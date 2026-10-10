@@ -426,16 +426,16 @@ class LocaltuyaClimate(LocalTuyaEntity, ClimateEntity):
             await self._device.set_dp(True, self._dp_id)
             # Some thermostats need a small wait before sending another update
             await asyncio.sleep(MODE_WAIT)
-        if self.has_config(CONF_HVAC_MODE_COOLING_DP):
-            if hvac_mode in [HVACMode.HEAT, HVACMode.COOL]:
-                self._device.set_dp(
-                    self._conf_hvac_mode_set[HVACMode.HEAT], self._conf_hvac_mode_dp
-                )
+        if self.has_config(CONF_HVAC_MODE_COOLING_DP) and hvac_mode in (HVACMode.HEAT, HVACMode.COOL):
+            # Heat and cool share the manual mode, the cooling DP selects which one
+            manual_mode = self._conf_hvac_mode_set[HVACMode.HEAT]
+            if self.dps_conf(CONF_HVAC_MODE_DP) != manual_mode:
+                await self._device.set_dp(manual_mode, self._conf_hvac_mode_dp)
                 await asyncio.sleep(MODE_WAIT)
-                await self._device.set_dp(
-                    self._conf_hvac_mode_cooling_set[hvac_mode],
-                    self._conf_hvac_mode_cooling_dp,
-                )
+            await self._device.set_dp(
+                self._conf_hvac_mode_cooling_set[hvac_mode],
+                self._conf_hvac_mode_cooling_dp,
+            )
         else:
             await self._device.set_dp(
                 self._conf_hvac_mode_set[hvac_mode], self._conf_hvac_mode_dp
@@ -519,15 +519,18 @@ class LocaltuyaClimate(LocalTuyaEntity, ClimateEntity):
             else:
                 for mode, value in self._conf_hvac_mode_set.items():
                     if self.dps_conf(CONF_HVAC_MODE_DP) == value:
+                        hvac_mode = mode
                         if (
                             self.has_config(CONF_HVAC_MODE_COOLING_DP)
                             and mode == HVACMode.HEAT
                         ):
-                            for mode, value in self._conf_hvac_mode_cooling_set.items():
-                                if self.dps_conf(CONF_HVAC_MODE_COOLING_DP) == value:
-                                    self._hvac_mode = mode
+                            # Stay in heat if the cooling DP has no known value
+                            cooling_dp_value = self.dps_conf(CONF_HVAC_MODE_COOLING_DP)
+                            for cooling_mode, cooling_value in self._conf_hvac_mode_cooling_set.items():
+                                if cooling_dp_value == cooling_value:
+                                    hvac_mode = cooling_mode
                                     break
-                        self._hvac_mode = mode
+                        self._hvac_mode = hvac_mode
                         break
                 else:
                     # in case hvac mode and preset share the same dp
