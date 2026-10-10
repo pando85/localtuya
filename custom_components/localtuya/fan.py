@@ -1,6 +1,5 @@
 """Platform to locally control Tuya-based fan devices."""
 import logging
-import math
 from functools import partial
 
 import homeassistant.helpers.config_validation as cv
@@ -151,12 +150,11 @@ class LocaltuyaFan(LocalTuyaEntity, FanEntity):
                 )
 
             else:
+                # Nearest speed, clamped so low percentages still give the lowest speed
+                speed = round(percentage_to_ranged_value(self._speed_range, percentage))
+                speed = min(max(speed, self._speed_range[0]), self._speed_range[1])
                 await self._device.set_dp(
-                    self._dps_type(
-                        math.ceil(
-                            percentage_to_ranged_value(self._speed_range, percentage)
-                        )
-                    ),
+                    self._dps_type(speed),
                     self._config.get(CONF_FAN_SPEED_CONTROL),
                 )
                 _LOGGER.debug(
