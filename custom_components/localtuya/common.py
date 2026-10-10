@@ -85,6 +85,7 @@ async def async_setup_entry(
             tuyainterface = hass.data[DOMAIN][TUYA_DEVICES][dev_id]
 
             dps_config_fields = list(get_dps_for_platform(flow_schema))
+            device_entities = []
 
             for entity_config in entities_to_setup:
                 # Add DPS used by this platform to the request list
@@ -92,15 +93,16 @@ async def async_setup_entry(
                     if dp_conf in entity_config:
                         tuyainterface.dps_to_request[entity_config[dp_conf]] = None
 
-                entities.append(
+                device_entities.append(
                     entity_class(
                         tuyainterface,
                         dev_entry,
                         entity_config[CONF_ID],
                     )
                 )
-    # Once the entities have been created, add to the TuyaDevice instance
-    tuyainterface.add_entities(entities)
+            # Once the entities have been created, add to the TuyaDevice instance
+            tuyainterface.add_entities(device_entities)
+            entities.extend(device_entities)
     async_add_entities(entities)
 
 
