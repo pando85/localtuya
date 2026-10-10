@@ -339,6 +339,12 @@ class LocaltuyaLight(LocalTuyaEntity, LightEntity):
     def __is_white_only(self):
         return ColorMode.HS not in self.supported_color_modes
 
+    def uses_dp_config(self, attr):
+        """Return if the DP set in a config parameter is used by the light."""
+        if attr == CONF_COLOR_MODE and self.__is_white_only():
+            return False
+        return super().uses_dp_config(attr)
+
     def __get_color_mode(self):
         # Without color support the light can only be white, whatever the mode DP holds
         return (
