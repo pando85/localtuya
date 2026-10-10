@@ -7,16 +7,12 @@ DATA_CLOUD = "cloud_data"
 
 # Platforms in this list must support config flows
 PLATFORMS = [
-    "binary_sensor",
     "climate",
-    "cover",
     "fan",
     "light",
     "number",
-    "select",
     "sensor",
     "switch",
-    "vacuum",
 ]
 
 TUYA_DEVICES = "tuya_devices"
@@ -64,14 +60,6 @@ CONF_CURRENT = "current"
 CONF_CURRENT_CONSUMPTION = "current_consumption"
 CONF_VOLTAGE = "voltage"
 
-# cover
-CONF_COMMANDS_SET = "commands_set"
-CONF_POSITIONING_MODE = "positioning_mode"
-CONF_CURRENT_POSITION_DP = "current_position_dp"
-CONF_SET_POSITION_DP = "set_position_dp"
-CONF_POSITION_INVERTED = "position_inverted"
-CONF_SPAN_TIME = "span_time"
-
 # fan
 CONF_FAN_SPEED_CONTROL = "fan_speed_control"
 CONF_FAN_OSCILLATING_CONTROL = "fan_oscillating_control"
@@ -110,33 +98,10 @@ CONF_HVAC_ACTION_SET = "hvac_action_set"
 CONF_ECO_DP = "eco_dp"
 CONF_ECO_VALUE = "eco_value"
 
-# vacuum
-CONF_POWERGO_DP = "powergo_dp"
-CONF_IDLE_STATUS_VALUE = "idle_status_value"
-CONF_RETURNING_STATUS_VALUE = "returning_status_value"
-CONF_DOCKED_STATUS_VALUE = "docked_status_value"
-CONF_BATTERY_DP = "battery_dp"
-CONF_MODE_DP = "mode_dp"
-CONF_MODES = "modes"
-CONF_FAN_SPEED_DP = "fan_speed_dp"
-CONF_FAN_SPEEDS = "fan_speeds"
-CONF_CLEAN_TIME_DP = "clean_time_dp"
-CONF_CLEAN_AREA_DP = "clean_area_dp"
-CONF_CLEAN_RECORD_DP = "clean_record_dp"
-CONF_LOCATE_DP = "locate_dp"
-CONF_FAULT_DP = "fault_dp"
-CONF_PAUSED_STATE = "paused_state"
-CONF_RETURN_MODE = "return_mode"
-CONF_STOP_STATUS = "stop_status"
-
 # number
 CONF_MIN_VALUE = "min_value"
 CONF_MAX_VALUE = "max_value"
 CONF_STEPSIZE_VALUE = "step_size"
-
-# select
-CONF_OPTIONS = "select_options"
-CONF_OPTIONS_FRIENDLY = "select_options_friendly"
 
 # States
 ATTR_STATE = "raw_state"
