@@ -323,24 +323,6 @@ class LocaltuyaClimate(LocalTuyaEntity, ClimateEntity):
 
         Need to be one of CURRENT_HVAC_*.
         """
-        if self._config.get(CONF_HEURISTIC_ACTION, False):
-            if self._hvac_mode == HVACMode.HEAT:
-                if self._current_temperature < (
-                    self._target_temperature - self._precision
-                ):
-                    self._hvac_action = HVACAction.HEATING
-                if self._current_temperature == (
-                    self._target_temperature - self._precision
-                ):
-                    if self._hvac_action == HVACAction.HEATING:
-                        self._hvac_action = HVACAction.HEATING
-                    if self._hvac_action == HVACAction.IDLE:
-                        self._hvac_action = HVACAction.IDLE
-                if (
-                    self._current_temperature + self._precision
-                ) > self._target_temperature:
-                    self._hvac_action = HVACAction.IDLE
-            return self._hvac_action
         return self._hvac_action
 
     @property
@@ -573,6 +555,44 @@ class LocaltuyaClimate(LocalTuyaEntity, ClimateEntity):
                     action = HVACAction.COOLING
                 self._hvac_action = action
                 break
+
+        if self._config.get(CONF_HEURISTIC_ACTION, False):
+            self._hvac_action = self._heuristic_hvac_action()
+
+    def _is_cooling(self):
+        """Return True if the thermostat is cooling, also in auto mode."""
+        if self._hvac_mode == HVACMode.COOL:
+            return True
+        return (
+            self._hvac_mode == HVACMode.AUTO
+            and self.has_config(CONF_HVAC_MODE_COOLING_DP)
+            and self.dps_conf(CONF_HVAC_MODE_COOLING_DP)
+            == self._conf_hvac_mode_cooling_set.get(HVACMode.COOL)
+        )
+
+    def _heuristic_hvac_action(self):
+        """Derive the action from the temperatures, for devices without a usable action DP.
+
+        Demand starts when the temperature is more than half a step away from the target
+        and stops once it reaches the target; in between the previous action is kept so
+        sensor noise does not toggle it.
+        """
+        if self._hvac_mode == HVACMode.OFF:
+            return HVACAction.OFF
+        if self._current_temperature is None or self._target_temperature is None:
+            return None
+        error = round(self._target_temperature - self._current_temperature, 2)
+        active_action = HVACAction.HEATING
+        if self._is_cooling():
+            active_action = HVACAction.COOLING
+            error = -error
+        if error > self.target_temperature_step / 2:
+            return active_action
+        if error <= 0:
+            return HVACAction.IDLE
+        if self._hvac_action == active_action:
+            return active_action
+        return HVACAction.IDLE
 
 
 async_setup_entry = partial(async_setup_entry, DOMAIN, LocaltuyaClimate, flow_schema)
